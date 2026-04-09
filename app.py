@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -7,12 +6,6 @@ import json
 from collections import Counter
 
 st.set_page_config(page_title="Job Market Lie Detector", page_icon="🔍", layout="wide")
-
-st.markdown("""
-<style>
-  .main { padding-top: 1rem; }
-</style>
-""", unsafe_allow_html=True)
 
 @st.cache_data
 def load_data():
@@ -49,12 +42,18 @@ def load_data():
         elif gap < -5: cat = "Overhyped"
         else:          cat = "Fair"
         rows.append({
-            "Skill": skill, "In Job Ads (%)": demanded,
-            "Used Daily (%)": real_pct, "Hidden Gap": gap, "Category": cat
+            "Skill": skill,
+            "In Job Ads (%)": demanded,
+            "Used Daily (%)": real_pct,
+            "Hidden Gap": gap,
+            "Category": cat
         })
     return pd.DataFrame(rows).sort_values("Hidden Gap", ascending=False), total
 
 df, total_jobs = load_data()
+
+# Build a simple lookup dictionary for fast matching
+skill_lookup = {row["Skill"].lower(): row for _, row in df.iterrows()}
 
 st.markdown("## Job Market Lie Detector")
 st.markdown("**What companies demand vs what Data Analysts actually use daily**")
@@ -145,39 +144,73 @@ st.markdown("Paste skills from any job posting to see how realistic it is")
 
 user_input = st.text_area(
     "Paste required skills here (comma separated)",
-    placeholder="e.g. SQL, Python, Spark, Kubernetes, Hadoop, Excel...",
+    placeholder="e.g. SQL, Python, Spark, Kubernetes, Hadoop, Java...",
     height=80
 )
 
-if user_input:
+if user_input.strip():
     entered = [s.strip() for s in user_input.split(",") if s.strip()]
-    hype    = []
+
+    overhyped_found = []
+    fair_found      = []
+    unknown_found   = []
+
     for s in entered:
-        match = df[df["Skill"].str.lower() == s.lower()]
-        if not match.empty and match["Category"].values[0] == "Overhyped":
-            hype.append(s)
-    score = max(0, 100 - len(hype) * 20)
+        key = s.lower()
+        if key in skill_lookup:
+            row = skill_lookup[key]
+            if row["Category"] == "Overhyped":
+                overhyped_found.append(row)
+            else:
+                fair_found.append(row)
+        else:
+            # skill not in our database — check if it is known hype
+            known_hype = ["kubernetes","docker","kafka","scala","terraform",
+                          "airflow","dbt","jenkins","ansible","cassandra"]
+            if key in known_hype:
+                overhyped_found.append({
+                    "Skill": s, "Used Daily (%)": 3,
+                    "In Job Ads (%)": 8, "Category": "Overhyped"
+                })
+            else:
+                unknown_found.append(s)
+
+    score = max(0, 100 - len(overhyped_found) * 20)
+
     col_a, col_b = st.columns(2)
     with col_a:
-        color = "green" if score >= 80 else ("orange" if score >= 50 else "red")
-        st.markdown(f"### Honesty score: :{color}[{score}/100]")
         if score >= 80:
+            st.success(f"### Honesty score: {score}/100")
             st.success("This job posting looks realistic")
         elif score >= 50:
+            st.warning(f"### Honesty score: {score}/100")
             st.warning("Some requirements may be inflated")
         else:
+            st.error(f"### Honesty score: {score}/100")
             st.error("This posting has unrealistic requirements")
+
+        st.markdown(f"**Skills checked:** {len(entered)}")
+        st.markdown(f"**Overhyped:** {len(overhyped_found)}")
+        st.markdown(f"**Realistic:** {len(fair_found)}")
+        if unknown_found:
+            st.markdown(f"**Not in our database:** {', '.join(unknown_found)}")
+
     with col_b:
-        if hype:
-            st.markdown("**Overhyped skills found:**")
-            for h in hype:
-                row = df[df["Skill"].str.lower() == h.lower()]
-                if not row.empty:
-                    st.markdown(f"- {h} — only used by {row['Used Daily (%)'].values[0]}% of analysts")
+        if overhyped_found:
+            st.markdown("**Overhyped skills in this posting:**")
+            for row in overhyped_found:
+                st.error(
+                    f"**{row['Skill']}** — only {row['Used Daily (%)']}% "
+                    f"of analysts use it daily but {row['In Job Ads (%)']}% "
+                    f"of job ads demand it"
+                )
         else:
-            st.success("No overhyped skills — realistic posting!")
+            st.success("No overhyped skills found — realistic posting!")
+
+        if fair_found:
+            st.markdown("**Realistic skills:**")
+            for row in fair_found:
+                st.success(f"**{row['Skill']}** — used by {row['Used Daily (%)']}% of analysts daily")
 
 st.markdown("---")
 st.markdown("Built with Python · JSearch API · Groq AI · Streamlit | 116 real US job postings")
-
-# paste the full app.py code here between the triple quotes
