@@ -1,0 +1,28 @@
+skill,job_posting_%,actually_used_%,hidden_gap
+Data Analytics,9,88,79
+Problem Solving,9,85,76
+PowerPoint,3,70,67
+Excel,23,85,62
+Communication,20,80,60
+Data Analysis,34,90,56
+Google Sheets,3,55,52
+Data Visualization,25,70,45
+Python,19,63,44
+Project Management,6,45,39
+Mathematics,5,40,35
+SharePoint,1,35,34
+SQL,60,92,32
+Statistics,13,45,32
+Tableau,17,48,31
+Power BI,25,52,27
+Agile,4,30,26
+Data Modeling,10,35,25
+AWS,3,25,22
+Data Science,12,30,18
+Machine Learning,3,18,15
+ETL,14,28,14
+R,9,22,13
+NoSQL,2,15,13
+Spark,2,8,6
+Java,3,6,3
+C++,2,4,2
